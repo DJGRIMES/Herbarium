@@ -1,0 +1,38 @@
+.home-hero {
+  background: linear-gradient(135deg, rgba(51, 94, 234, 0.85), rgba(103, 161, 255, 0.85));
+  color: #fff;
+  border-radius: 1.5rem;
+  box-shadow: 0 1.5rem 3rem rgba(15, 23, 42, 0.3);
+  margin: 0 auto;
+  max-width: 720px;
+  padding-inline: 1.5rem;
+}
+
+.logo {
+  height: 6rem;
+  will-change: filter;
+  transition: filter 300ms ease;
+}
+
+.logo:hover {
+  filter: drop-shadow(0 0 2rem rgba(255, 255, 255, 0.35));
+}
+
+.logo.react {
+  animation: logo-spin infinite 20s linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo.react {
+    animation: none;
+  }
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
