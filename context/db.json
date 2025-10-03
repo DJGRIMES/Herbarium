@@ -31,4 +31,297 @@
       "columns": [
         {"name":"id","type":"uuid","nullable":false,"default":"gen_random_uuid()"},
         {"name":"scientific_name","type":"text","nullable":false,"unique":true},
-        {"name"
+        {"name":"rank","type":"text","default":"species"},
+        {"name":"genus","type":"text"},
+        {"name":"family","type":"text"},
+        {"name":"is_native_local","type":"boolean"},
+        {"name":"invasive_status_local","type":"invasive_status","default":"none"},
+        {"name":"growth_form","type":"growth_form"},
+        {"name":"lifecycle","type":"lifecycle"},
+        {"name":"light_pref","type":"text[]","default":"{}"},
+        {"name":"moisture_pref","type":"text[]","default":"{}"},
+        {"name":"bloom_months","type":"int[]","check":"subset of 1..12"},
+        {"name":"wetland_indicator","type":"text"},
+        {"name":"cc_coef","type":"int"},
+        {"name":"usda_symbol","type":"text"},
+        {"name":"notes_id","type":"text"},
+        {"name":"notes_mgmt","type":"text"},
+        {"name":"verified","type":"boolean","default":false},
+        {"name":"created_by","type":"uuid"},
+        {"name":"updated_by","type":"uuid"},
+        {"name":"created_at","type":"timestamptz","default":"now()"},
+        {"name":"updated_at","type":"timestamptz","default":"now()"}
+      ],
+      "indexes": [
+        {"name":"taxon_name_gin","type":"gin","expr":"to_tsvector('simple', coalesce(scientific_name,'') || ' ' || coalesce(genus,'') || ' ' || coalesce(family,''))"}
+      ],
+      "rls_enabled": true
+    },
+    "common_name": {
+      "description": "Region-aware, ranked common names tied to a taxon.",
+      "primary_key": ["id"],
+      "columns": [
+        {"name":"id","type":"uuid","default":"gen_random_uuid()"},
+        {"name":"taxon_id","type":"uuid","fk":"taxon.id","on_delete":"cascade","nullable":false},
+        {"name":"name","type":"citext","nullable":false},
+        {"name":"is_preferred","type":"boolean","default":false},
+        {"name":"locale","type":"text","default":"en-US"},
+        {"name":"region_code","type":"text"},
+        {"name":"weight","type":"smallint","default":0},
+        {"name":"created_at","type":"timestamptz","default":"now()"},
+        {"name":"updated_at","type":"timestamptz","default":"now()"}
+      ],
+      "indexes": [
+        {"name":"common_name_tsv_gin","type":"gin","expr":"to_tsvector('simple', name)"},
+        {"name":"ux_common_name_null_region","type":"unique","expr":"(taxon_id, name) WHERE region_code IS NULL","kind":"partial"},
+        {"name":"ux_common_name_region","type":"unique","expr":"(taxon_id, name, region_code) WHERE region_code IS NOT NULL","kind":"partial"}
+      ],
+      "rls_enabled": true
+    },
+    "synonym": {
+      "description": "Scientific aliases for the accepted scientific name.",
+      "primary_key": ["id"],
+      "uniques": [["taxon_id","name"]],
+      "columns": [
+        {"name":"id","type":"uuid","default":"gen_random_uuid()"},
+        {"name":"taxon_id","type":"uuid","fk":"taxon.id","on_delete":"cascade","nullable":false},
+        {"name":"name","type":"citext","nullable":false},
+        {"name":"created_at","type":"timestamptz","default":"now()"},
+        {"name":"updated_at","type":"timestamptz","default":"now()"}
+      ],
+      "indexes": [
+        {"name":"synonym_tsv_gin","type":"gin","expr":"to_tsvector('simple', name)"}
+      ],
+      "rls_enabled": true
+    },
+    "image": {
+      "description": "Season/phenophase-aware media tied to a taxon.",
+      "primary_key": ["id"],
+      "columns": [
+        {"name":"id","type":"uuid","default":"gen_random_uuid()"},
+        {"name":"taxon_id","type":"uuid","fk":"taxon.id","on_delete":"cascade","nullable":false},
+        {"name":"storage_key","type":"text","nullable":false},
+        {"name":"caption","type":"text"},
+        {"name":"captured_at","type":"date"},
+        {"name":"season_tags","type":"season_tag[]","default":"{}"},
+        {"name":"phenophase","type":"phenophase","default":"unknown"},
+        {"name":"view","type":"text"},
+        {"name":"photographer","type":"text"},
+        {"name":"license","type":"text"},
+        {"name":"is_reference_quality","type":"boolean","default":false},
+        {"name":"created_at","type":"timestamptz","default":"now()"},
+        {"name":"updated_at","type":"timestamptz","default":"now()"}
+      ],
+      "rls_enabled": true
+    },
+    "lookalike": {
+      "description": "Pairs of confusable taxa with notes.",
+      "primary_key": ["id"],
+      "uniques": [["taxon_id","other_taxon_id"]],
+      "columns": [
+        {"name":"id","type":"uuid","default":"gen_random_uuid()"},
+        {"name":"taxon_id","type":"uuid","fk":"taxon.id","on_delete":"cascade","nullable":false},
+        {"name":"other_taxon_id","type":"uuid","fk":"taxon.id","on_delete":"cascade","nullable":false},
+        {"name":"diff_notes","type":"text"},
+        {"name":"created_at","type":"timestamptz","default":"now()"},
+        {"name":"updated_at","type":"timestamptz","default":"now()"}
+      ],
+      "rls_enabled": true
+    },
+    "control_window": {
+      "description": "Operational windows/methods (also usable for native maintenance).",
+      "primary_key": ["id"],
+      "columns": [
+        {"name":"id","type":"uuid","default":"gen_random_uuid()"},
+        {"name":"taxon_id","type":"uuid","fk":"taxon.id","on_delete":"cascade","nullable":false},
+        {"name":"method","type":"control_method","nullable":false},
+        {"name":"best_months","type":"int[]","comment":"subset of 1..12"},
+        {"name":"target_phenophase","type":"phenophase"},
+        {"name":"followup_days","type":"int"},
+        {"name":"notes","type":"text"},
+        {"name":"created_at","type":"timestamptz","default":"now()"},
+        {"name":"updated_at","type":"timestamptz","default":"now()"}
+      ],
+      "rls_enabled": true
+    },
+    "propagation": {
+      "description": "How to propagate/install desirable natives.",
+      "primary_key": ["id"],
+      "columns": [
+        {"name":"id","type":"uuid","default":"gen_random_uuid()"},
+        {"name":"taxon_id","type":"uuid","fk":"taxon.id","on_delete":"cascade","nullable":false},
+        {"name":"method","type":"text"},
+        {"name":"best_months","type":"int[]"},
+        {"name":"pretreatments","type":"text"},
+        {"name":"spacing_in","type":"numeric"},
+        {"name":"rate_lbs_per_acre","type":"numeric"},
+        {"name":"notes","type":"text"},
+        {"name":"created_at","type":"timestamptz","default":"now()"},
+        {"name":"updated_at","type":"timestamptz","default":"now()"}
+      ],
+      "rls_enabled": true
+    },
+    "region_profile": {
+      "description": "Per-region overrides for nativity, invasiveness, legal notes.",
+      "primary_key": ["id"],
+      "uniques": [["taxon_id","region_code"]],
+      "columns": [
+        {"name":"id","type":"uuid","default":"gen_random_uuid()"},
+        {"name":"taxon_id","type":"uuid","fk":"taxon.id","on_delete":"cascade","nullable":false},
+        {"name":"region_code","type":"text","nullable":false},
+        {"name":"is_native","type":"boolean"},
+        {"name":"invasive_status","type":"invasive_status","default":"none"},
+        {"name":"legal_notes","type":"text"},
+        {"name":"created_at","type":"timestamptz","default":"now()"},
+        {"name":"updated_at","type":"timestamptz","default":"now()"}
+      ],
+      "rls_enabled": true
+    },
+    "reference": {
+      "description": "Citations/links backing a taxon’s facts.",
+      "primary_key": ["id"],
+      "columns": [
+        {"name":"id","type":"uuid","default":"gen_random_uuid()"},
+        {"name":"taxon_id","type":"uuid","fk":"taxon.id","on_delete":"cascade","nullable":false},
+        {"name":"title","type":"text"},
+        {"name":"url","type":"text"},
+        {"name":"publisher","type":"text"},
+        {"name":"year","type":"int"},
+        {"name":"created_at","type":"timestamptz","default":"now()"},
+        {"name":"updated_at","type":"timestamptz","default":"now()"}
+      ],
+      "rls_enabled": true
+    },
+    "taxon_group": {
+      "description": "User-facing groups (e.g., 'thistles', 'goldenrods') for ambiguous logging.",
+      "primary_key": ["id"],
+      "columns": [
+        {"name":"id","type":"uuid","default":"gen_random_uuid()"},
+        {"name":"group_name","type":"citext","nullable":false},
+        {"name":"group_type","type":"group_type","default":"custom"},
+        {"name":"region_code","type":"text"},
+        {"name":"notes","type":"text"},
+        {"name":"is_active","type":"boolean","default":true},
+        {"name":"created_at","type":"timestamptz","default":"now()"},
+        {"name":"updated_at","type":"timestamptz","default":"now()"}
+      ],
+      "indexes": [
+        {"name":"ux_taxon_group_null_region","type":"unique","expr":"(group_name) WHERE region_code IS NULL","kind":"partial"},
+        {"name":"ux_taxon_group_region","type":"unique","expr":"(group_name, region_code) WHERE region_code IS NOT NULL","kind":"partial"}
+      ],
+      "rls_enabled": true
+    },
+    "taxon_group_member": {
+      "description": "Membership table linking taxa to groups.",
+      "primary_key": ["group_id","taxon_id"],
+      "columns": [
+        {"name":"group_id","type":"uuid","fk":"taxon_group.id","on_delete":"cascade","nullable":false},
+        {"name":"taxon_id","type":"uuid","fk":"taxon.id","on_delete":"cascade","nullable":false}
+      ],
+      "rls_enabled": true
+    },
+    "name_alias": {
+      "description": "Misspellings/slang mapped to a taxon or group (region-aware).",
+      "primary_key": ["id"],
+      "columns": [
+        {"name":"id","type":"uuid","default":"gen_random_uuid()"},
+        {"name":"alias","type":"citext","nullable":false},
+        {"name":"target_type","type":"target_kind","nullable":false},
+        {"name":"target_id","type":"uuid","nullable":false,"comment":"FK to taxon.id or taxon_group.id"},
+        {"name":"region_code","type":"text"},
+        {"name":"confidence","type":"numeric"},
+        {"name":"is_deprecated","type":"boolean","default":false},
+        {"name":"created_at","type":"timestamptz","default":"now()"},
+        {"name":"updated_at","type":"timestamptz","default":"now()"}
+      ],
+      "indexes": [
+        {"name":"name_alias_tsv_gin","type":"gin","expr":"to_tsvector('simple', alias)"},
+        {"name":"ux_name_alias_null_region","type":"unique","expr":"(alias, target_type, target_id) WHERE region_code IS NULL","kind":"partial"},
+        {"name":"ux_name_alias_region","type":"unique","expr":"(alias, target_type, target_id, region_code) WHERE region_code IS NOT NULL","kind":"partial"}
+      ],
+      "rls_enabled": true
+    }
+  },
+  "relationships": [
+    {"from":"common_name.taxon_id","to":"taxon.id","kind":"many-to-one","on_delete":"cascade"},
+    {"from":"synonym.taxon_id","to":"taxon.id","kind":"many-to-one","on_delete":"cascade"},
+    {"from":"image.taxon_id","to":"taxon.id","kind":"many-to-one","on_delete":"cascade"},
+    {"from":"lookalike.taxon_id","to":"taxon.id","kind":"many-to-one","on_delete":"cascade"},
+    {"from":"lookalike.other_taxon_id","to":"taxon.id","kind":"many-to-one","on_delete":"cascade"},
+    {"from":"control_window.taxon_id","to":"taxon.id","kind":"many-to-one","on_delete":"cascade"},
+    {"from":"propagation.taxon_id","to":"taxon.id","kind":"many-to-one","on_delete":"cascade"},
+    {"from":"region_profile.taxon_id","to":"taxon.id","kind":"many-to-one","on_delete":"cascade"},
+    {"from":"reference.taxon_id","to":"taxon.id","kind":"many-to-one","on_delete":"cascade"},
+    {"from":"taxon_group_member.group_id","to":"taxon_group.id","kind":"many-to-one","on_delete":"cascade"},
+    {"from":"taxon_group_member.taxon_id","to":"taxon.id","kind":"many-to-one","on_delete":"cascade"},
+    {"from":"name_alias.target_id","to":"taxon.id OR taxon_group.id","kind":"polymorphic"}
+  ],
+  "functions": [
+    {
+      "name": "display_common_name",
+      "signature": "display_common_name(p_taxon_id uuid, p_region text) returns text",
+      "purpose": "Pick the best display common name for a taxon in a region, falling back to global name or scientific name.",
+      "ranking_rules": [
+        "Exact region match first",
+        "Then any regionalized name over global",
+        "Then is_preferred=true",
+        "Then weight desc",
+        "Then alphabetical"
+      ],
+      "impl_note": "Function uses a windowed rank in a CTE; avoids referencing SELECT aliases in ORDER BY to prevent SQL errors."
+    },
+    {
+      "name": "set_updated_at",
+      "signature": "trigger -> sets NEW.updated_at = now()",
+      "purpose": "Keeps updated_at current on mutations; attached to write-heavy tables."
+    }
+  ],
+  "usage_patterns": {
+    "autocomplete_common_name": {
+      "input": "free text; optional region_code and site frequency hints",
+      "strategy": "search common_name.name + name_alias.alias (region-weighted); include group suggestions",
+      "sample_sql": "SELECT taxon_id, name FROM common_name WHERE to_tsvector('simple', name) @@ plainto_tsquery($1) AND (region_code IS NULL OR region_code = $2) ORDER BY is_preferred DESC, weight DESC, name ASC LIMIT 10;"
+    },
+    "resolve_alias": {
+      "purpose": "Map slang/misspelling to a taxon or group",
+      "sample_sql": "SELECT target_type, target_id FROM name_alias WHERE alias = $1 AND (region_code IS NULL OR region_code = $2) ORDER BY region_code NULLS LAST LIMIT 1;"
+    },
+    "display_label_for_region": {
+      "purpose": "Get UX label for a taxon",
+      "sample_sql": "SELECT display_common_name($1::uuid, $2::text) AS label;"
+    },
+    "seasonal_images_for_taxon": {
+      "purpose": "Filter images by a current or chosen season",
+      "sample_sql": "SELECT * FROM image WHERE taxon_id = $1 AND ($2::season_tag IS NULL OR $2 = ANY(season_tags)) ORDER BY is_reference_quality DESC, captured_at DESC NULLS LAST;"
+    },
+    "control_windows_now": {
+      "purpose": "Which methods are in-window this month",
+      "sample_sql": "SELECT c.*, t.scientific_name FROM control_window c JOIN taxon t ON t.id = c.taxon_id WHERE extract(month from now()) = ANY(c.best_months);"
+    },
+    "group_expansion": {
+      "purpose": "Expand a group to its member taxa for queries/tasks",
+      "sample_sql": "SELECT taxon_id FROM taxon_group_member WHERE group_id = $1;"
+    }
+  },
+  "security": {
+    "row_level_security": "ENABLED on all tables",
+    "suggested_roles": ["admin","manager","crew","viewer"],
+    "policy_notes": [
+      "Anon read is optional; do not enable writes for anon.",
+      "Crew: SELECT taxon/common_name/image; INSERT name_alias (pending) if desired.",
+      "Managers: INSERT/UPDATE taxon/common_name/synonym/image/group/control_window/etc."
+    ]
+  },
+  "seed": {
+    "csv_columns_recommended": [
+      "scientific_name","preferred_common_name","genus","family",
+      "is_native_local","invasive_status_local","usda_symbol","bloom_months",
+      "growth_form","lifecycle","light_pref","moisture_pref","wetland_indicator",
+      "aliases","sources","verified"
+    ],
+    "region_defaults": {"region_code": "US-MI"},
+    "media_licensing": "Prefer Wikimedia Commons (via Wikidata) or iNaturalist with permissive licenses; store attribution."
+  },
+  "status": "draft",
+  "handoff_notes": "Matches SQL migration with partial unique indexes for common_name, taxon_group, and name_alias. Agents should generate types/endpoints using these tables and respect RLS in Supabase client calls."
+}
