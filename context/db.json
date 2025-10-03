@@ -1,0 +1,34 @@
+{
+  "project": {
+    "name": "Herbarium / Common-Name-First DB",
+    "version": "0.1.1",
+    "db_engine": "PostgreSQL (Supabase)",
+    "extensions_required": ["pgcrypto", "citext"],
+    "encoding": "UTF-8"
+  },
+  "purpose": "Source of truth for plant taxonomy with a common-name-first UX, season-aware media, and management guidance. Field users work with common names and groups; the data layer resolves to stable scientific taxon IDs.",
+  "design_principles": [
+    "Crew UX favors common names and groups; scientific names remain canonical for joins/exports.",
+    "Region awareness for names and status (native/invasive).",
+    "Season-aware images and control windows for filtering and guidance.",
+    "Alias + synonym layers absorb slang/misspellings safely.",
+    "Everything auditable; easy manager triage for new names."
+  ],
+  "enums": [
+    {"name": "season_tag", "values": ["winter","spring","summer","fall"]},
+    {"name": "phenophase", "values": ["seedling","rosette","vegetative","bud","flower","fruit_seed","senescent","dormant","unknown"]},
+    {"name": "growth_form", "values": ["forb","graminoid","shrub","tree","vine","fern","moss","other"]},
+    {"name": "lifecycle", "values": ["annual","biennial","perennial","mixed"]},
+    {"name": "invasive_status", "values": ["none","watch","invasive","prohibited"]},
+    {"name": "control_method", "values": ["hand_pull","dig","cut","mow","solarize","burn","foliar_spray","cut_stump","basal_bark","smother","other"]},
+    {"name": "target_kind", "values": ["taxon","group"]},
+    {"name": "group_type", "values": ["genus_group","functional_group","custom"]}
+  ],
+  "tables": {
+    "taxon": {
+      "description": "Canonical scientific backbone (one per accepted species/thing).",
+      "primary_key": ["id"],
+      "columns": [
+        {"name":"id","type":"uuid","nullable":false,"default":"gen_random_uuid()"},
+        {"name":"scientific_name","type":"text","nullable":false,"unique":true},
+        {"name"
